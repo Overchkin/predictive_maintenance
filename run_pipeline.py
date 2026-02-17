@@ -1,32 +1,34 @@
-# run_pipeline.py
-from src.data.ingest import load_raw_data
-from src.data.preprocess import preprocess_data
-from src.models.train import train
-from src.models.predict import Predictor
+import sys
+import os
 import pandas as pd
 
-# 1️⃣ Load raw data
+# Ajouter src au path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "src")))
+
+from models.train import train
+from models.predict import Predictor
+from utils.helpers import save_object, load_object
+
 print("Loading raw data...")
-df = load_raw_data("data/raw/ai4i2020.csv")
+df = pd.read_csv("data/raw/ai4i2020.csv")
 
-# 2️⃣ Preprocess & feature engineering
 print("Preprocessing data...")
-X_scaled, y, scaler, cols = preprocess_data(df)
+features = ["Air temperature [K]", "Process temperature [K]",
+            "Rotational speed [rpm]", "Torque [Nm]", "Tool wear [min]", "Type"]
+target = "Machine failure"
 
-# 3️⃣ Train model
+# Encodage du type produit
+df["Type"] = df["Type"].map({"L": 0, "M": 1, "H": 2})
+
+X = df[features]
+y = df[target]
+
 print("Training model...")
-train()
+model, scaler = train(X, y)
+print("Training complete. Model saved.")
 
-# 4️⃣ Quick prediction test
 print("Testing prediction...")
 predictor = Predictor()
-sample_input = {
-    "Type": "L",
-    "Air temperature [K]": 300,
-    "Process temperature [K]": 310,
-    "Rotational speed [rpm]": 1500,
-    "Torque [Nm]": 40,
-    "Tool wear [min]": 5,
-}
-print(predictor.predict(sample_input))
-
+sample_input = X.iloc[0].to_dict()
+result = predictor.predict(sample_input)
+print(result)

@@ -1,34 +1,33 @@
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from utils.helpers import save_object
+import os
 
-from src.data.ingest import load_raw_data
-from src.data.preprocess import preprocess_data
-from src.utils.helpers import save_object
+def train(X_train, y_train, model_path=None, scaler_path=None):
+    """
+    Entraîne un Random Forest Classifier avec StandardScaler sur les colonnes numériques.
+    X_train : DataFrame pandas contenant toutes les features
+    y_train : Series pandas, target
+    """
+    numeric_features = ["Air temperature [K]", "Process temperature [K]",
+                        "Rotational speed [rpm]", "Torque [Nm]", "Tool wear [min]"]
 
+    # Scaler uniquement sur les colonnes numériques
+    scaler = StandardScaler()
+    X_scaled = X_train.copy()
+    X_scaled[numeric_features] = scaler.fit_transform(X_train[numeric_features])
 
-DATA_PATH = "data/raw/ai4i2020.csv"
-MODEL_PATH = "models/rf_model.pkl"
-SCALER_PATH = "models/scaler.pkl"
+    # Entraînement du modèle
+    model = RandomForestClassifier(n_estimators=100, random_state=42)
+    model.fit(X_scaled, y_train)
 
+    # Chemins par défaut
+    if model_path is None:
+        model_path = os.path.join(os.path.dirname(__file__), "rf_model.pkl")
+    if scaler_path is None:
+        scaler_path = os.path.join(os.path.dirname(__file__), "scaler.pkl")
 
-def train():
-    df = load_raw_data(DATA_PATH)
+    save_object(model, model_path)
+    save_object(scaler, scaler_path)
 
-    X_scaled, y, scaler, feature_names = preprocess_data(df)
-
-    X_train, X_test, y_train, y_test = train_test_split(
-        X_scaled, y, test_size=0.2, stratify=y, random_state=42
-    )
-
-    model = RandomForestClassifier(
-        n_estimators=200,
-        class_weight="balanced",
-        random_state=42
-    )
-
-    model.fit(X_train, y_train)
-
-    save_object(model, MODEL_PATH)
-    save_object(scaler, SCALER_PATH)
-
-    print("Training complete. Model saved.")
+    return model, scaler

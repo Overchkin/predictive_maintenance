@@ -1,48 +1,39 @@
 import pandas as pd
-import numpy as np
-
-from src.utils.helpers import load_object
-from src.features.create_features import engineer_features
-
-
-MODEL_PATH = "models/rf_model.pkl"
-SCALER_PATH = "models/scaler.pkl"
-
+import os
+from utils.helpers import load_object
 
 class Predictor:
+    def __init__(self, model_path=None, scaler_path=None):
+        if model_path is None:
+            model_path = os.path.join(os.path.dirname(__file__), "rf_model.pkl")
+        if scaler_path is None:
+            scaler_path = os.path.join(os.path.dirname(__file__), "scaler.pkl")
 
-    def __init__(self):
-        self.model = load_object(MODEL_PATH)
-        self.scaler = load_object(SCALER_PATH)
+        self.model = load_object(model_path)
+        self.scaler = load_object(scaler_path)
 
-    def preprocess_input(self, input_dict: dict) -> pd.DataFrame:
-        """
-        Convert raw input into model-ready format.
-        """
+        # --- Encoder les types produits au même format que le modèle ---
+        self.type_mapping = {"L": 0, "M": 1, "H": 2}  # correspond au fit
 
+    def predict(self, input_dict):
         df = pd.DataFrame([input_dict])
 
-        # Encode Type
-        df["Type"] = df["Type"].map({"L": 0, "M": 1, "H": 2})
+        # Encoder la colonne Type
+        df["Type"] = df["Type"].map(self.type_mapping)
 
-        # Feature engineering
-        df = engineer_features(df)
+        numeric_features = ["Air temperature [K]", "Process temperature [K]",
+                            "Rotational speed [rpm]", "Torque [Nm]", "Tool wear [min]"]
 
-        return df
+        # scaler uniquement sur les colonnes numériques
+        df_scaled = df.copy()
+        df_scaled[numeric_features] = self.scaler.transform(df[numeric_features])
 
-    def predict(self, input_dict: dict) -> dict:
-        """
-        Predict machine failure probability.
-        """
+        # Ordre exact des colonnes pour le modèle
+        final_order = ["Air temperature [K]", "Process temperature [K]",
+                       "Rotational speed [rpm]", "Torque [Nm]", "Tool wear [min]", "Type"]
+        df_scaled = df_scaled[final_order]
 
-        df_processed = self.preprocess_input(input_dict)
+        pred = self.model.predict(df_scaled)[0]
+        prob = self.model.predict_proba(df_scaled)[0][1]
 
-        X_scaled = self.scaler.transform(df_processed)
-
-        prediction = self.model.predict(X_scaled)[0]
-        probability = self.model.predict_proba(X_scaled)[0][1]
-
-        return {
-            "prediction": int(prediction),
-            "failure_probability": float(probability)
-        }
+        return {"prediction": int(pred), "failure_probability": float(prob)}
