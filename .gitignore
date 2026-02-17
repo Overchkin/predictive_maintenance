@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.env
+*.venv
+*.egg-info/
+.eggs/
+
+
+# Jupyter
+.ipynb_checkpoints
+
+
+# Environnement
+venv/
+.env
+
+
+# IDE
+.vscode/
+.idea/
+
+
+# Data
+data/processed/
+
+
+# Logs
+*.log
+
+
+# Docker
+*.dockerignore
+
+
+# Streamlit
+.streamlit/
